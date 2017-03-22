@@ -97,6 +97,7 @@ mod opcodes {
     pub fn decode(opcode: u16) -> OpcodeFunc {
         // TODO: map all opcodes
         match opcode {
+            0x6000...0x6FFF => set_vx_to_immediate,
             _ => nop,
         }
     }
@@ -105,9 +106,20 @@ mod opcodes {
         c8.pc += 2;
     }
 
+    /// Extracts the X and Y parameters from a 16-bit opcode in the format 0x_XY_
+    fn get_opcode_args(opcode: u16) -> (u8, u8) {
+        ( ((opcode & 0x0F00) >> 8) as u8 , ((opcode & 0x00F0) >> 4) as u8 )
+    }
+
+    /// Extracts an 8-bit immediate value (NN)
+    fn get_immediate_value(opcode: u16) -> u8 {
+        (opcode & 0x00FF) as u8
+    }
+
+    /// opcode 6XNN
     fn set_vx_to_immediate(c8: &mut Chip8) {
-        let x = (c8.opcode & 0x0F00) >> 8;
-        let nn = (c8.opcode & 0x00FF) as u8;
+        let (x, _) = get_opcode_args(c8.opcode);
+        let nn = get_immediate_value(c8.opcode);
 
         c8.v[x as usize] = nn;
         c8.pc += 2;
