@@ -97,13 +97,57 @@ mod opcodes {
     pub fn decode(opcode: u16) -> OpcodeFunc {
         // TODO: map all opcodes
         match opcode {
+            0x00E0 => clear_screen,
+            0x00EE => return_from_sub,
+            0x1000...0x1FFF => jump_addr,
+            0x2000...0x2FFF => call_sub_at_nnn,
+            0x3000...0x3FFF => skip_if_vx_equal_to_nn,
+            0x4000...0x4FFF => skip_if_vx_not_equal_to_nn,
+            0x5000...0x5FFF => skip_if_vx_equal_to_vy,
             0x6000...0x6FFF => set_vx_to_immediate,
-            _ => nop,
+            0x7000...0x7FFF => add_nn_to_vx,
+            0x8000...0x8FFF => {
+                match opcode & 0xF {
+                    0x0 => assign_vy_to_vx,
+                    0x1 => vx_or_vy,
+                    0x2 => vx_and_vy,
+                    0x3 => vx_xor_vy,
+                    0x4 => add_vy_to_vx,
+                    0x5 => sub_vy_to_vx,
+                    0x6 => shift_vx_right,
+                    0x7 => sub_vx_to_vy,
+                    0xE => shift_vx_left,
+                    _ => panic!(),
+                }
+            },
+            0x9000...0x9FFF => skip_if_vx_not_equal_to_vy,
+            0xA000...0xAFFF => set_memory_nnn,
+            0xB000...0xBFFF => jump_addr_sum,
+            0xC000...0xCFFF => rand_to_vx,
+            0xD000...0xDFFF => draw,
+            0xE000...0xEFFF => {
+                match opcode & 0xFF {
+                    0x9E => skip_if_key_pressed,
+                    0xA1 => skip_if_key_not_pressed,
+                    _ => panic!(),
+                }
+            },
+            0xF000...0xFFFF => {
+                match opcode & 0xFF {
+                    0x07 => set_vx_to_delay,
+                    0x0A => wait_for_key_press,
+                    0x15 => set_delay_to_vx,
+                    0x18 => set_sound_to_vx,
+                    0x1E => add_vx_to_i,
+                    0x29 => set_i_to_sprite_addr,
+                    0x33 => set_bcd,
+                    0x55 => dump_registers,
+                    0x65 => load_registers,
+                    _ => panic!(),
+                }
+            },
+            _ => panic!(),
         }
-    }
-
-    fn nop(c8: &mut Chip8) {
-        c8.pc += 2;
     }
 
     /// Extracts the X and Y parameters from a 16-bit opcode in the format 0x_XY_
@@ -177,7 +221,7 @@ mod opcodes {
     /// opcode 5XY0.
     /// It will skip the next instruction if Vx == Vy.
     fn skip_if_vx_equal_to_vy(c8: &mut Chip8) {
-        let (x, y) = get_opcode_args(c8.opcode);
+        let (x, _) = get_opcode_args(c8.opcode);
 
         c8.pc += if c8.v[x] == c8.v[x] { 4 } else { 2 };
     }
@@ -289,7 +333,7 @@ mod opcodes {
     /// opcode 9XY0
     /// Cond	if(Vx!=Vy)	Skips the next instruction if VX doesn't equal VY.
     fn skip_if_vx_not_equal_to_vy(c8: &mut Chip8) {
-        let (x, y) = get_opcode_args(c8.opcode);
+        let (x, _) = get_opcode_args(c8.opcode);
 
         c8.pc += if c8.v[x] == c8.v[x] { 2 } else { 4 };
     }
@@ -327,24 +371,24 @@ mod opcodes {
 
         for row in 0..height {
 
-            let pixelRow = c8.memory[(c8.i as usize) + row as usize];
+            let pixel_row = c8.memory[(c8.i as usize) + row as usize];
 
             for col in 0..8 {
                 // check if pixel went from 0 to 1
-                let colMask = 0x80 >> col;
-                let pixelUpdated = (colMask & pixelRow) != 0;
-                let pixelAddress = x + col + ((y + row as usize) * 64);
+                let col_mask = 0x80 >> col;
+                let pixel_updated = (col_mask & pixel_row) != 0;
+                let pixel_address = x + col + ((y + row as usize) * 64);
 
-                if pixelUpdated {
+                if pixel_updated {
                     // if pixel was already 1, there's a collision
-                    let collision = c8.vram[pixelAddress] == 1;
+                    let collision = c8.vram[pixel_address] == 1;
 
                     if collision {
                         c8.v[0xF] = 1;
                     }
 
                     // flip the pixel
-                    c8.vram[pixelAddress] ^= 1;
+                    c8.vram[pixel_address] ^= 1;
                 }
             }
         }
@@ -418,12 +462,12 @@ mod opcodes {
     /// BCD	set_BCD(Vx);
     fn set_bcd(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
-        let bcdValue = c8.v[x];
+        let bcd_value = c8.v[x];
 
         let addr = c8.i;
-        c8.write(addr, bcdValue / 100);
-        c8.write(addr + 1, (bcdValue % 100) / 10);
-        c8.write(addr + 2, (bcdValue % 100) % 10);
+        c8.write(addr, bcd_value / 100);
+        c8.write(addr + 1, (bcd_value % 100) / 10);
+        c8.write(addr + 2, (bcd_value % 100) % 10);
 
         c8.pc += 2;
     }
