@@ -106,6 +106,8 @@ fn combine_bytes(low: u8, high: u8) -> u16 {
 
 
 mod opcodes {
+    use rand;
+    use rand::Rng;
     use chip8::core::Chip8;
 
     pub type OpcodeFunc = fn(&mut Chip8);
@@ -372,8 +374,7 @@ mod opcodes {
     fn rand_to_vx(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
         let nn = get_immediate_value(c8.opcode);
-        // TODO: put a random number between 0 and 255 here
-        c8.v[x] = 0 & nn;
+        c8.v[x] = rand::thread_rng().gen_range(0, 255) & nn;
         c8.pc += 2;
     }
 
