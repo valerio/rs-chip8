@@ -9,6 +9,11 @@ static FONT_SET: [u8; 80] = [0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x2
                              0xF0, 0x80, 0x80];
 
 
+pub enum KeyEvent {
+    Up(usize),
+    Down(usize),
+}
+
 #[derive(Debug)]
 pub struct Chip8 {
     i: u16,
@@ -80,6 +85,17 @@ impl Chip8 {
                 println!("BOOP!");
             }
             self.sound_t -= 1;
+        }
+    }
+
+    pub fn handle_input(&mut self, key_event: KeyEvent) {
+        if self.stopped {
+            self.stopped = false;
+        }
+
+        match key_event {
+            KeyEvent::Up(key) => self.keypad[key] = 1,
+            KeyEvent::Down(key) => self.keypad[key] = 0,
         }
     }
 }
