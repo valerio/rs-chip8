@@ -8,6 +8,9 @@ static FONT_SET: [u8; 80] = [0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x2
                              0x90, 0x90, 0x90, 0xE0, 0xF0, 0x80, 0xF0, 0x80, 0xF0, 0xF0, 0x80,
                              0xF0, 0x80, 0x80];
 
+
+type OpcodeFunc = fn(&mut Chip8);
+
 #[derive(Debug)]
 pub struct Chip8 {
     i: u16,
@@ -26,7 +29,7 @@ pub struct Chip8 {
 }
 
 impl Chip8 {
-    fn new() -> Chip8 {
+    pub fn new() -> Chip8 {
         let mut c8 = Chip8 {
             i: 0,
             pc: 0,
@@ -49,4 +52,42 @@ impl Chip8 {
 
         c8
     }
+
+    pub fn step(&mut self) {
+        let opcode = combine_bytes(self.memory[(self.pc + 1) as usize],
+                                   self.memory[self.pc as usize]);
+
+        // decode
+        let func = decode(opcode);
+
+        // exec
+        func(self);
+
+        // update timers
+        if self.delay_t > 0 {
+            self.delay_t -= 1;
+        }
+
+        if self.sound_t > 0 {
+            if self.sound_t == 1 {
+                println!("BOOP!");
+            }
+            self.sound_t -= 1;
+        }
+    }
+}
+
+fn combine_bytes(low: u8, high: u8) -> u16 {
+    (high as u16) << 8 | low as u16
+}
+
+fn decode(opcode: u16) -> OpcodeFunc {
+    // TODO: map all opcodes
+    match opcode {
+        _ => nop,
+    }
+}
+
+fn nop(c8: &mut Chip8) {
+    c8.pc += 2;
 }

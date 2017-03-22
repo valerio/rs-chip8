@@ -1,10 +1,10 @@
 extern crate sdl2;
 
+mod chip8;
+
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-
-mod chip8;
 
 use chip8::core::Chip8;
 
@@ -44,9 +44,11 @@ fn run_emulator() -> Result<(), Box<std::error::Error>> {
     })?;
 
     let mut event_pump = sdl_context.event_pump()?;
+    let mut emulator = Chip8::new();
 
     'running: loop {
         // TODO: Run the chip8 here!
+        emulator.step();
 
         // Drawing
         renderer.clear();
