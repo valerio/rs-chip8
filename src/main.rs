@@ -4,6 +4,10 @@ use sdl2::pixels::PixelFormatEnum;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
+mod chip8;
+
+use chip8::core::Chip8;
+
 fn main() {
     println!("Hello, world!");
     
