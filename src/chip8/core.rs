@@ -9,8 +9,6 @@ static FONT_SET: [u8; 80] = [0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x2
                              0xF0, 0x80, 0x80];
 
 
-type OpcodeFunc = fn(&mut Chip8);
-
 #[derive(Debug)]
 pub struct Chip8 {
     i: u16,
@@ -53,12 +51,21 @@ impl Chip8 {
         c8
     }
 
+    /// Reads a byte from memory at the specified address `addr`.
+    pub fn read(&self, addr: u16) -> u8 {
+        self.memory[addr as usize]
+    }
+
+    /// Writes `data` in memory at the specified address `addr`.
+    pub fn write(&mut self, addr: u16, data: u8) {
+        self.memory[addr as usize] = data;
+    }
+
     pub fn step(&mut self) {
-        let opcode = combine_bytes(self.memory[(self.pc + 1) as usize],
-                                   self.memory[self.pc as usize]);
+        let opcode = combine_bytes(self.read(self.pc + 1), self.read(self.pc));
 
         // decode
-        let func = decode(opcode);
+        let func = opcodes::decode(opcode);
 
         // exec
         func(self);
@@ -81,13 +88,28 @@ fn combine_bytes(low: u8, high: u8) -> u16 {
     (high as u16) << 8 | low as u16
 }
 
-fn decode(opcode: u16) -> OpcodeFunc {
-    // TODO: map all opcodes
-    match opcode {
-        _ => nop,
-    }
-}
 
-fn nop(c8: &mut Chip8) {
-    c8.pc += 2;
+mod opcodes {
+    use chip8::core::Chip8;
+
+    pub type OpcodeFunc = fn(&mut Chip8);
+
+    pub fn decode(opcode: u16) -> OpcodeFunc {
+        // TODO: map all opcodes
+        match opcode {
+            _ => nop,
+        }
+    }
+
+    fn nop(c8: &mut Chip8) {
+        c8.pc += 2;
+    }
+
+    fn set_vx_to_immediate(c8: &mut Chip8) {
+        let x = (c8.opcode & 0x0F00) >> 8;
+        let nn = (c8.opcode & 0x00FF) as u8;
+
+        c8.v[x as usize] = nn;
+        c8.pc += 2;
+    }
 }
