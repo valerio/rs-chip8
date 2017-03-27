@@ -1,3 +1,6 @@
+use std::fs;
+use std::io;
+use std::io::Read;
 
 static FONT_SET: [u8; 80] = [0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x20, 0x70, 0xF0,
                              0x10, 0xF0, 0x80, 0xF0, 0xF0, 0x10, 0xF0, 0x10, 0xF0, 0x90, 0x90,
@@ -66,6 +69,20 @@ impl Chip8 {
         self.memory[addr as usize] = data;
     }
 
+    // Loads a game from a file at the specfied `path`.
+    pub fn load_rom_file(&mut self, path: &str) -> io::Result<()> {
+        let mut file = fs::File::open(path)?;
+        let mut buffer : Vec<u8> = Vec::new();
+
+        file.read_to_end(&mut buffer)?;
+
+        for i in 0..buffer.len() { 
+            self.memory[self.i as usize + i] = buffer[i];
+        }
+
+        Ok(())
+    }
+
     pub fn step(&mut self) {
         let opcode = combine_bytes(self.read(self.pc + 1), self.read(self.pc));
 
@@ -113,7 +130,6 @@ mod opcodes {
     pub type OpcodeFunc = fn(&mut Chip8);
 
     pub fn decode(opcode: u16) -> OpcodeFunc {
-        // TODO: map all opcodes
         match opcode {
             0x00E0 => clear_screen,
             0x00EE => return_from_sub,
