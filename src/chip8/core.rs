@@ -84,6 +84,10 @@ impl Chip8 {
     }
 
     pub fn step(&mut self) {
+        if self.stopped {
+            return;
+        }
+
         let opcode = combine_bytes(self.read(self.pc + 1), self.read(self.pc));
 
         // decode
