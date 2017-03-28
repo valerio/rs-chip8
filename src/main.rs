@@ -1,5 +1,6 @@
 extern crate sdl2;
 extern crate rand;
+extern crate clap;
 
 mod chip8;
 
@@ -7,15 +8,28 @@ use sdl2::pixels::PixelFormatEnum;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
+use clap::{Arg, App};
+
 use chip8::core::Chip8;
 
 fn main() {
-    println!("Hello, world!");
-    
-    run_emulator().expect("Error occurred in main loop");
+    let matches = App::new("rs-chip8")
+                    .about("Chip8 Emulator")
+                    .arg(Arg::with_name("file")
+                               .value_name("FILE")
+                               .help("Sets the input file to use")
+                               .required(true)
+                               .index(1))
+                    .get_matches();
+
+    let file_name = matches.value_of("file").expect("Must specify a file to load.");
+
+    println!("{}", file_name);
+
+    run_emulator(&file_name).expect("Error occurred in main loop");
 }
 
-fn run_emulator() -> Result<(), Box<std::error::Error>> {
+fn run_emulator(file_name: &str) -> Result<(), Box<std::error::Error>> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
 
@@ -46,6 +60,7 @@ fn run_emulator() -> Result<(), Box<std::error::Error>> {
 
     let mut event_pump = sdl_context.event_pump()?;
     let mut emulator = Chip8::new();
+    emulator.load_rom_file(file_name)?;
 
     'running: loop {
         // Execute
