@@ -24,8 +24,6 @@ fn main() {
 
     let file_name = matches.value_of("file").expect("Must specify a file to load.");
 
-    println!("{}", file_name);
-
     run_emulator(&file_name).expect("Error occurred in main loop");
 }
 

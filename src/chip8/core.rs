@@ -53,7 +53,7 @@ impl Chip8 {
         };
 
         for i in 0..FONT_SET.len() {
-            c8.v[i] = FONT_SET[i];
+            c8.memory[i] = FONT_SET[i];
         }
 
         c8
