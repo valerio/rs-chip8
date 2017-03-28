@@ -77,7 +77,7 @@ impl Chip8 {
         file.read_to_end(&mut buffer)?;
 
         for i in 0..buffer.len() { 
-            self.memory[self.i as usize + i] = buffer[i];
+            self.memory[0x200 + i] = buffer[i];
         }
 
         Ok(())
