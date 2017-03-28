@@ -155,7 +155,7 @@ mod opcodes {
                     0x6 => shift_vx_right,
                     0x7 => sub_vx_to_vy,
                     0xE => shift_vx_left,
-                    _ => panic!(),
+                    _ => panic!("Unknown opcode ${:04x}", opcode),
                 }
             },
             0x9000...0x9FFF => skip_if_vx_not_equal_to_vy,
@@ -167,7 +167,7 @@ mod opcodes {
                 match opcode & 0xFF {
                     0x9E => skip_if_key_pressed,
                     0xA1 => skip_if_key_not_pressed,
-                    _ => panic!(),
+                    _ => panic!("Unknown opcode ${:04x}", opcode),
                 }
             },
             0xF000...0xFFFF => {
@@ -181,10 +181,10 @@ mod opcodes {
                     0x33 => set_bcd,
                     0x55 => dump_registers,
                     0x65 => load_registers,
-                    _ => panic!(),
+                    _ => panic!("Unknown opcode ${:04x}", opcode),
                 }
             },
-            _ => panic!(),
+            _ => panic!("Unknown opcode ${:04x}", opcode),
         }
     }
 
