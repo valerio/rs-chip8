@@ -38,7 +38,7 @@ impl Chip8 {
     pub fn new() -> Chip8 {
         let mut c8 = Chip8 {
             i: 0,
-            pc: 0,
+            pc: 0x200,
             sp: 0,
             stack: vec![0; 16],
             v: vec![0; 16],
