@@ -88,10 +88,10 @@ impl Chip8 {
             return;
         }
 
-        let opcode = combine_bytes(self.read(self.pc + 1), self.read(self.pc));
+        self.opcode = combine_bytes(self.read(self.pc + 1), self.read(self.pc));
 
         // decode
-        let func = opcodes::decode(opcode);
+        let func = opcodes::decode(self.opcode);
 
         // exec
         func(self);
