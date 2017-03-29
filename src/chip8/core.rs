@@ -204,7 +204,7 @@ mod opcodes {
         let nn = get_immediate_value(c8.opcode);
 
         c8.v[x] = nn;
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 00E0.
@@ -214,7 +214,7 @@ mod opcodes {
             c8.vram[i] = 0;
         }
 
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 00EE.
@@ -244,7 +244,7 @@ mod opcodes {
         let (x, _) = get_opcode_args(c8.opcode);
         let nn = get_immediate_value(c8.opcode);
 
-        c8.pc += if c8.v[x] == nn { 4 } else { 2 };
+        c8.pc = c8.pc.wrapping_add(if c8.v[x] == nn { 4 } else { 2 });
     }
 
     /// opcode 4XNN.
@@ -253,7 +253,7 @@ mod opcodes {
         let (x, _) = get_opcode_args(c8.opcode);
         let nn = get_immediate_value(c8.opcode);
 
-        c8.pc += if c8.v[x] == nn { 2 } else { 4 };
+        c8.pc = c8.pc.wrapping_add(if c8.v[x] == nn { 2 } else { 4 });
     }
 
     /// opcode 5XY0.
@@ -261,7 +261,7 @@ mod opcodes {
     fn skip_if_vx_equal_to_vy(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
 
-        c8.pc += if c8.v[x] == c8.v[x] { 4 } else { 2 };
+        c8.pc = c8.pc.wrapping_add(if c8.v[x] == c8.v[x] { 4 } else { 2 });
     }
 
     /// opcode 7XNN
@@ -269,8 +269,8 @@ mod opcodes {
     fn add_nn_to_vx(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
         let nn = get_immediate_value(c8.opcode);
-        c8.v[x] += nn;
-        c8.pc += 2;
+        c8.v[x] = c8.v[x].wrapping_add(nn);
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 8XY0
@@ -278,7 +278,7 @@ mod opcodes {
     fn assign_vy_to_vx(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
         c8.v[x] = c8.v[y];
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 8XY1
@@ -286,7 +286,7 @@ mod opcodes {
     fn vx_or_vy(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
         c8.v[x] = c8.v[x] | c8.v[y];
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 8XY2
@@ -294,7 +294,7 @@ mod opcodes {
     fn vx_and_vy(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
         c8.v[x] = c8.v[x] & c8.v[y];
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 8XY3
@@ -302,7 +302,7 @@ mod opcodes {
     fn vx_xor_vy(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
         c8.v[x] = c8.v[x] ^ c8.v[y];
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 8XY4
@@ -310,12 +310,12 @@ mod opcodes {
     fn add_vy_to_vx(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
 
-        c8.v[x] = c8.v[x] + c8.v[y];
+        c8.v[x] = c8.v[x].wrapping_add(c8.v[y]);
 
         c8.v[0xF] = if let None = u8::checked_add(c8.v[x], c8.v[y])
                     { 1 } else { 0 };
 
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 8XY5
@@ -323,12 +323,12 @@ mod opcodes {
     fn sub_vy_to_vx(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
 
-        c8.v[x] = c8.v[x] - c8.v[y];
+        c8.v[x] = c8.v[x].wrapping_sub(c8.v[y]);
 
         c8.v[0xF] = if let None = u8::checked_sub(c8.v[x], c8.v[y])
                     { 1 } else { 0 };
 
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 8XY6
@@ -340,7 +340,7 @@ mod opcodes {
         c8.v[x] = c8.v[x] >> 1;
         c8.v[0xF] = lsb as u8;
 
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 8XY7
@@ -348,12 +348,12 @@ mod opcodes {
     fn sub_vx_to_vy(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
 
-        c8.v[x] = c8.v[y] - c8.v[x];
+        c8.v[x] = c8.v[y].wrapping_sub(c8.v[x]);
 
         c8.v[0xF] = if let None = u8::checked_sub(c8.v[y], c8.v[x])
                     { 1 } else { 0 };
 
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 8XYE
@@ -365,7 +365,7 @@ mod opcodes {
         c8.v[x] = c8.v[x] << 1;
         c8.v[0xF] = msb as u8;
 
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode 9XY0
@@ -373,14 +373,14 @@ mod opcodes {
     fn skip_if_vx_not_equal_to_vy(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
 
-        c8.pc += if c8.v[x] == c8.v[x] { 2 } else { 4 };
+        c8.pc = c8.pc.wrapping_add(if c8.v[x] == c8.v[x] { 2 } else { 4 });
     }
 
     /// opcode ANNN
     /// MEM	I = NNN	Sets I to the address NNN.
     fn set_memory_nnn(c8: &mut Chip8) {
         c8.i = c8.opcode & 0x0FFF;
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode BNNN
@@ -395,7 +395,7 @@ mod opcodes {
         let (x, _) = get_opcode_args(c8.opcode);
         let nn = get_immediate_value(c8.opcode);
         c8.v[x] = rand::thread_rng().gen_range(0, 255) & nn;
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode DXYN
@@ -431,21 +431,21 @@ mod opcodes {
         }
 
         c8.draw_flag = true;
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode EX9E
     /// KeyOp	if(key()==Vx)	Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)
     fn skip_if_key_pressed(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
-        c8.pc += if c8.keypad[x] != 0 { 4 } else { 2 };
+        c8.pc = c8.pc.wrapping_add(if c8.keypad[x] != 0 { 4 } else { 2 });
     }
 
     /// opcode EXA1
     /// KeyOp	if(key()!=Vx)	Skips the next instruction if the key stored in VX isn't pressed. (Usually the next instruction is a jump to skip a code block)
     fn skip_if_key_not_pressed(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
-        c8.pc += if c8.keypad[x] != 0 { 2 } else { 4 };
+        c8.pc = c8.pc.wrapping_add(if c8.keypad[x] != 0 { 2 } else { 4 });
     }
 
     /// opcode FX07
@@ -453,14 +453,14 @@ mod opcodes {
     fn set_vx_to_delay(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
         c8.v[x] = c8.delay_t;
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode FX0A
     /// KeyOp	Vx = get_key()	A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event)
     fn wait_for_key_press(c8: &mut Chip8) {
         c8.stopped = true;
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode FX15
@@ -468,7 +468,7 @@ mod opcodes {
     fn set_delay_to_vx(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
         c8.delay_t = c8.v[x];
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode FX18
@@ -476,7 +476,7 @@ mod opcodes {
     fn set_sound_to_vx(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
         c8.sound_t = c8.v[x];
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode FX1E
@@ -484,7 +484,7 @@ mod opcodes {
     fn add_vx_to_i(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
         c8.i += c8.v[x] as u16;
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode FX29
@@ -492,7 +492,7 @@ mod opcodes {
     fn set_i_to_sprite_addr(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
         c8.i = (c8.v[x] * 5) as u16;
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode FX33
@@ -506,7 +506,7 @@ mod opcodes {
         c8.write(addr + 1, (bcd_value % 100) / 10);
         c8.write(addr + 2, (bcd_value % 100) % 10);
 
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode FX55
@@ -520,7 +520,7 @@ mod opcodes {
             c8.write(addr, data);
         }
 
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 
     /// opcode FX65
@@ -532,6 +532,6 @@ mod opcodes {
             c8.v[i] = c8.read((c8.i as u16) + i as u16);
         }
 
-        c8.pc += 2;
+        c8.pc = c8.pc.wrapping_add(2);
     }
 }
