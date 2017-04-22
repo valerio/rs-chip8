@@ -57,34 +57,40 @@ pub fn run_emulator(file_name: &str) -> Result<(), Box<std::error::Error>> {
         emulator.step();
 
         // Draw
-        renderer.clear();
+        draw_step(&mut renderer, &mut texture, &emulator)?;
 
-        texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
-            if !emulator.should_draw() { return; }
-
-            let fb = emulator.get_framebuffer();
-
-            for y in 0..32 {
-                for x in 0..64 {
-                    let offset = x * 3 + pitch * y;
-                    let fb_index = x + (y * 64);
-                    let pixel = fb[fb_index];
-
-                    let color = if pixel == 0 { 0 } else { 255 };
-
-                    buffer[offset] = color;
-                    buffer[offset + 1] = color;
-                    buffer[offset + 2] = color;
-                }
-            }
-        })?;
-
-        renderer.copy(&texture, None, None)?;
-        renderer.present();
-
-        
         thread::sleep(Duration::from_millis(16));
     }
+
+    Ok(())
+}
+
+fn draw_step(renderer: &mut sdl2::render::Renderer, texture: &mut sdl2::render::Texture, emulator: &Chip8) -> 
+        Result<(), Box<std::error::Error>> {
+    renderer.clear();
+
+    texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+        if !emulator.should_draw() { return; }
+
+        let fb = emulator.get_framebuffer();
+
+        for y in 0..32 {
+            for x in 0..64 {
+                let offset = x * 3 + pitch * y;
+                let fb_index = x + (y * 64);
+                let pixel = fb[fb_index];
+
+                let color = if pixel == 0 { 0 } else { 255 };
+
+                buffer[offset] = color;
+                buffer[offset + 1] = color;
+                buffer[offset + 2] = color;
+            }
+        }
+    })?;
+
+    renderer.copy(&texture, None, None)?;
+    renderer.present();
 
     Ok(())
 }
