@@ -119,6 +119,10 @@ impl Chip8 {
             KeyEvent::Down(key) => self.keypad[key] = 0,
         }
     }
+
+    pub fn get_framebuffer(&self) -> &[u8] { &self.vram }
+
+    pub fn should_draw(&self) -> bool { self.draw_flag }
 }
 
 fn combine_bytes(low: u8, high: u8) -> u16 {
