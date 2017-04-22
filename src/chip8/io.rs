@@ -39,11 +39,11 @@ pub fn run_emulator(file_name: &str) -> Result<(), Box<std::error::Error>> {
                 },
                 Event::KeyDown { keycode: Some(key), .. } => {
                     // println!("Key {} down", key);
-                    handle_input(true, key)
+                    map_keycode(true, key)
                 }
                 Event::KeyUp { keycode: Some(key), .. } => {
                     // println!("Key {} up", key);
-                    handle_input(false, key)
+                    map_keycode(false, key)
                 }
                 _ => {None}
             };
@@ -89,7 +89,7 @@ pub fn run_emulator(file_name: &str) -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
-fn handle_input(down: bool, key: sdl2::keyboard::Keycode) -> Option<KeyEvent> {
+fn map_keycode(down: bool, key: sdl2::keyboard::Keycode) -> Option<KeyEvent> {
     let keypad_num : usize = match key {
         Keycode::Num1 => 1,
         Keycode::Num2 => 2,
