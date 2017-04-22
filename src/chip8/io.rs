@@ -1,15 +1,16 @@
 use sdl2;
+use sdl2::render::{Renderer, Texture};
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
-use std;
+use std::error::Error;
 use std::thread;
 use std::time::Duration;
 
 use chip8::core::{Chip8, KeyEvent};
 
-pub fn run_emulator(file_name: &str) -> Result<(), Box<std::error::Error>> {
+pub fn run_emulator(file_name: &str) -> Result<(), Box<Error>> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
 
@@ -65,8 +66,7 @@ pub fn run_emulator(file_name: &str) -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
-fn draw_step(renderer: &mut sdl2::render::Renderer, texture: &mut sdl2::render::Texture, emulator: &Chip8) -> 
-        Result<(), Box<std::error::Error>> {
+fn draw_step(renderer: &mut Renderer, texture: &mut Texture, emulator: &Chip8) -> Result<(), Box<Error>> {
     renderer.clear();
 
     texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
