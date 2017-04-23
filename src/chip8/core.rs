@@ -2,6 +2,9 @@ use std::fs;
 use std::io;
 use std::io::Read;
 
+use std::fmt::{Debug, Formatter};
+use std::fmt;
+
 static FONT_SET: [u8; 80] = [0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x20, 0x70, 0xF0,
                              0x10, 0xF0, 0x80, 0xF0, 0xF0, 0x10, 0xF0, 0x10, 0xF0, 0x90, 0x90,
                              0xF0, 0x10, 0x10, 0xF0, 0x80, 0xF0, 0x10, 0xF0, 0xF0, 0x80, 0xF0,
@@ -217,7 +220,8 @@ mod opcodes {
         for i in 0..c8.vram.len() {
             c8.vram[i] = 0;
         }
-
+        
+        c8.draw_flag = true;
         c8.pc = c8.pc.wrapping_add(2);
     }
 
@@ -225,7 +229,7 @@ mod opcodes {
     /// Returns from a subroutine, meaning it will set the PC to the last stack value.
     fn return_from_sub(c8: &mut Chip8) {
         c8.sp -= 1;
-        c8.pc = c8.stack[c8.sp as usize] + 2;
+        c8.pc = c8.stack[c8.sp as usize].wrapping_add(2);
     }
 
     /// opcode 1NNN.
@@ -257,15 +261,15 @@ mod opcodes {
         let (x, _) = get_opcode_args(c8.opcode);
         let nn = get_immediate_value(c8.opcode);
 
-        c8.pc = c8.pc.wrapping_add(if c8.v[x] == nn { 2 } else { 4 });
+        c8.pc = c8.pc.wrapping_add(if c8.v[x] != nn { 4 } else { 2 });
     }
 
     /// opcode 5XY0.
     /// It will skip the next instruction if Vx == Vy.
     fn skip_if_vx_equal_to_vy(c8: &mut Chip8) {
-        let (x, _) = get_opcode_args(c8.opcode);
+        let (x, y) = get_opcode_args(c8.opcode);
 
-        c8.pc = c8.pc.wrapping_add(if c8.v[x] == c8.v[x] { 4 } else { 2 });
+        c8.pc = c8.pc.wrapping_add(if c8.v[x] == c8.v[y] { 4 } else { 2 });
     }
 
     /// opcode 7XNN
@@ -289,7 +293,7 @@ mod opcodes {
     /// Assigns the value of Vx | Vy to Vx
     fn vx_or_vy(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
-        c8.v[x] = c8.v[x] | c8.v[y];
+        c8.v[x] |= c8.v[y];
         c8.pc = c8.pc.wrapping_add(2);
     }
 
@@ -297,7 +301,7 @@ mod opcodes {
     /// Assigns the value of Vx & Vy to Vx
     fn vx_and_vy(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
-        c8.v[x] = c8.v[x] & c8.v[y];
+        c8.v[x] &= c8.v[y];
         c8.pc = c8.pc.wrapping_add(2);
     }
 
@@ -305,7 +309,7 @@ mod opcodes {
     /// Assigns the value of Vx xor Vy to Vx
     fn vx_xor_vy(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
-        c8.v[x] = c8.v[x] ^ c8.v[y];
+        c8.v[x] ^= c8.v[y];
         c8.pc = c8.pc.wrapping_add(2);
     }
 
@@ -330,7 +334,7 @@ mod opcodes {
         c8.v[x] = c8.v[x].wrapping_sub(c8.v[y]);
 
         c8.v[0xF] = if let None = u8::checked_sub(c8.v[x], c8.v[y])
-                    { 1 } else { 0 };
+                    { 0 } else { 1 };
 
         c8.pc = c8.pc.wrapping_add(2);
     }
@@ -340,9 +344,8 @@ mod opcodes {
     fn shift_vx_right(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
 
-        let lsb = x & 1;
-        c8.v[x] = c8.v[x] >> 1;
-        c8.v[0xF] = lsb as u8;
+        c8.v[0xF] = c8.v[x] & 1;
+        c8.v[x] >>= 1;
 
         c8.pc = c8.pc.wrapping_add(2);
     }
@@ -353,9 +356,8 @@ mod opcodes {
         let (x, y) = get_opcode_args(c8.opcode);
 
         c8.v[x] = c8.v[y].wrapping_sub(c8.v[x]);
-
         c8.v[0xF] = if let None = u8::checked_sub(c8.v[y], c8.v[x])
-                    { 1 } else { 0 };
+                    { 0 } else { 1 };
 
         c8.pc = c8.pc.wrapping_add(2);
     }
@@ -365,9 +367,8 @@ mod opcodes {
     fn shift_vx_left(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
 
-        let msb = x & 0x80;
-        c8.v[x] = c8.v[x] << 1;
-        c8.v[0xF] = msb as u8;
+        c8.v[0xF] = (c8.v[x] >> 7) & 0x1;
+        c8.v[x] <<= 1;
 
         c8.pc = c8.pc.wrapping_add(2);
     }
@@ -375,9 +376,9 @@ mod opcodes {
     /// opcode 9XY0
     /// Cond	if(Vx!=Vy)	Skips the next instruction if VX doesn't equal VY.
     fn skip_if_vx_not_equal_to_vy(c8: &mut Chip8) {
-        let (x, _) = get_opcode_args(c8.opcode);
+        let (x, y) = get_opcode_args(c8.opcode);
 
-        c8.pc = c8.pc.wrapping_add(if c8.v[x] == c8.v[x] { 2 } else { 4 });
+        c8.pc = c8.pc.wrapping_add(if c8.v[x] != c8.v[y] { 4 } else { 2 });
     }
 
     /// opcode ANNN
@@ -390,7 +391,7 @@ mod opcodes {
     /// opcode BNNN
     /// Flow PC=V0+NNN	Jumps to the address NNN plus V0.
     fn jump_addr_sum(c8: &mut Chip8) {
-        c8.pc = (c8.opcode & 0x0FFF) + (c8.v[0] as u16);
+        c8.pc = (c8.opcode & 0x0FFF).wrapping_add(c8.v[0] as u16);
     }
 
     /// opcode CXNN
@@ -406,19 +407,18 @@ mod opcodes {
     /// Disp	draw(Vx,Vy,N)	Draws a sprite at coordinate (VX, VY)
     fn draw(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
-        let height = c8.opcode & 0xF;
+        let height = (c8.opcode & 0xF) as usize;
 
         c8.v[0xF] = 0;
 
         for row in 0..height {
-
-            let pixel_row = c8.memory[(c8.i as usize) + row as usize];
+            let pixel_row = c8.memory[(c8.i as usize) + row];
 
             for col in 0..8 {
                 // check if pixel went from 0 to 1
                 let col_mask = 0x80 >> col;
-                let pixel_updated = (col_mask & pixel_row) != 0;
-                let pixel_address = x + col + ((y + row as usize) * 64);
+                let pixel_updated = col_mask & pixel_row != 0;
+                let pixel_address = x + col + ((y + row) * 64);
 
                 if pixel_updated {
                     // if pixel was already 1, there's a collision
@@ -442,14 +442,14 @@ mod opcodes {
     /// KeyOp	if(key()==Vx)	Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)
     fn skip_if_key_pressed(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
-        c8.pc = c8.pc.wrapping_add(if c8.keypad[x] != 0 { 4 } else { 2 });
+        c8.pc = c8.pc.wrapping_add(if c8.keypad[c8.v[x] as usize] != 0 { 4 } else { 2 });
     }
 
     /// opcode EXA1
     /// KeyOp	if(key()!=Vx)	Skips the next instruction if the key stored in VX isn't pressed. (Usually the next instruction is a jump to skip a code block)
     fn skip_if_key_not_pressed(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
-        c8.pc = c8.pc.wrapping_add(if c8.keypad[x] != 0 { 2 } else { 4 });
+        c8.pc = c8.pc.wrapping_add(if c8.keypad[c8.v[x] as usize] == 0 { 4 } else { 2 });
     }
 
     /// opcode FX07
@@ -487,6 +487,8 @@ mod opcodes {
     /// MEM	I +=Vx	Adds VX to I.[3]
     fn add_vx_to_i(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
+
+        c8.v[0xF] = if (c8.i + c8.v[x] as u16) > 0x0FFF { 1 } else { 0 };
         c8.i += c8.v[x] as u16;
         c8.pc = c8.pc.wrapping_add(2);
     }
@@ -495,7 +497,7 @@ mod opcodes {
     /// MEM	I=sprite_addr[Vx]	Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
     fn set_i_to_sprite_addr(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
-        c8.i = (c8.v[x] * 5) as u16;
+        c8.i = (c8.v[x] as u16) * 5;
         c8.pc = c8.pc.wrapping_add(2);
     }
 
@@ -504,8 +506,8 @@ mod opcodes {
     fn set_bcd(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
         let bcd_value = c8.v[x];
-
         let addr = c8.i;
+
         c8.write(addr, bcd_value / 100);
         c8.write(addr + 1, (bcd_value % 100) / 10);
         c8.write(addr + 2, (bcd_value % 100) % 10);
@@ -520,7 +522,7 @@ mod opcodes {
 
         for i in 0..x {
             let data = c8.v[i];
-            let addr = (c8.i as u16) + i as u16;
+            let addr = c8.i + i as u16;
             c8.write(addr, data);
         }
 
@@ -533,7 +535,7 @@ mod opcodes {
         let (x, _) = get_opcode_args(c8.opcode);
 
         for i in 0..x {
-            c8.v[i] = c8.read((c8.i as u16) + i as u16);
+            c8.v[i] = c8.read(c8.i + i as u16);
         }
 
         c8.pc = c8.pc.wrapping_add(2);
