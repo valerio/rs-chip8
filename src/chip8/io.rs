@@ -3,10 +3,9 @@ use sdl2::render::{Renderer, Texture};
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::gfx::framerate::FPSManager;
 
 use std::error::Error;
-use std::thread;
-use std::time::Duration;
 
 use chip8::core::{Chip8, KeyEvent};
 
@@ -19,12 +18,15 @@ pub fn run_emulator(file_name: &str) -> Result<(), Box<Error>> {
         .resizable()
         .opengl()
         .build()?;
-
+        
     let mut renderer = window.renderer()
         .build()?;
 
     let mut texture = renderer
         .create_texture_streaming(PixelFormatEnum::RGB24, 64, 32)?;
+
+    let mut fps_manager = FPSManager::new();
+    fps_manager.set_framerate(60)?;
 
     let mut event_pump = sdl_context.event_pump()?;
     let mut emulator = Chip8::new();
@@ -34,23 +36,14 @@ pub fn run_emulator(file_name: &str) -> Result<(), Box<Error>> {
         // Handle inputs
         for event in event_pump.poll_iter() {
             let key_event : Option<KeyEvent> = match event {
-                Event::Quit {..}
-                | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                    break 'running
-                },
-                Event::KeyDown { keycode: Some(key), .. } => {
-                    // println!("Key {} down", key);
-                    map_keycode(true, key)
-                }
-                Event::KeyUp { keycode: Some(key), .. } => {
-                    // println!("Key {} up", key);
-                    map_keycode(false, key)
-                }
-                _ => {None}
+                Event::Quit {..} | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => break 'running,
+                Event::KeyDown { keycode: Some(key), .. } => map_keycode(true, key),
+                Event::KeyUp { keycode: Some(key), .. } => map_keycode(false, key),
+                _ => None,
             };
 
-            if let Some(event) = key_event {
-                emulator.handle_input(event);
+            if let Some(e) = key_event {
+                emulator.handle_input(e);
             }
         }
 
@@ -60,7 +53,7 @@ pub fn run_emulator(file_name: &str) -> Result<(), Box<Error>> {
         // Draw
         draw_step(&mut renderer, &mut texture, &emulator)?;
 
-        thread::sleep(Duration::from_millis(16));
+        fps_manager.delay();
     }
 
     Ok(())
