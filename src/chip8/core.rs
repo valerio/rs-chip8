@@ -17,6 +17,11 @@ pub enum KeyEvent {
     Down(usize),
 }
 
+const STACK_SIZE: usize = 16;
+const REGISTERS: usize = 16;
+const MEMORY_SIZE: usize = 4096;
+const VRAM_SIZE: usize = 64 * 32;
+
 #[derive(Debug)]
 pub struct Chip8 {
     i: u16,
@@ -40,10 +45,10 @@ impl Chip8 {
             i: 0,
             pc: 0x200,
             sp: 0,
-            stack: vec![0; 16],
-            v: vec![0; 16],
-            memory: vec![0; 4096],
-            vram: vec![0; 64 * 32],
+            stack: vec![0; STACK_SIZE],
+            v: vec![0; REGISTERS],
+            memory: vec![0; MEMORY_SIZE],
+            vram: vec![0; VRAM_SIZE],
             keypad: vec![0; 16],
             delay_t: 0,
             sound_t: 0,
@@ -135,9 +140,7 @@ mod opcodes {
     use rand::Rng;
     use chip8::core::Chip8;
 
-    pub type OpcodeFunc = fn(&mut Chip8);
-
-    pub fn decode(opcode: u16) -> OpcodeFunc {
+    pub fn decode(opcode: u16) -> fn(&mut Chip8) {
         match opcode {
             0x00E0 => clear_screen,
             0x00EE => return_from_sub,
@@ -404,6 +407,7 @@ mod opcodes {
     /// Disp	draw(Vx,Vy,N)	Draws a sprite at coordinate (VX, VY)
     fn draw(c8: &mut Chip8) {
         let (x, y) = get_opcode_args(c8.opcode);
+        let (x, y) = (c8.v[x] as usize, c8.v[y] as usize);
         let height = (c8.opcode & 0xF) as usize;
 
         c8.v[0xF] = 0;
