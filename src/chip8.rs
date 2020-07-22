@@ -2,15 +2,13 @@ use std::fs;
 use std::io;
 use std::io::Read;
 
-static FONT_SET: [u8; 80] = [0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x20, 0x70, 0xF0,
-                             0x10, 0xF0, 0x80, 0xF0, 0xF0, 0x10, 0xF0, 0x10, 0xF0, 0x90, 0x90,
-                             0xF0, 0x10, 0x10, 0xF0, 0x80, 0xF0, 0x10, 0xF0, 0xF0, 0x80, 0xF0,
-                             0x90, 0xF0, 0xF0, 0x10, 0x20, 0x40, 0x40, 0xF0, 0x90, 0xF0, 0x90,
-                             0xF0, 0xF0, 0x90, 0xF0, 0x10, 0xF0, 0xF0, 0x90, 0xF0, 0x90, 0x90,
-                             0xE0, 0x90, 0xE0, 0x90, 0xE0, 0xF0, 0x80, 0x80, 0x80, 0xF0, 0xE0,
-                             0x90, 0x90, 0x90, 0xE0, 0xF0, 0x80, 0xF0, 0x80, 0xF0, 0xF0, 0x80,
-                             0xF0, 0x80, 0x80];
-
+static FONT_SET: [u8; 80] = [
+    0xF0, 0x90, 0x90, 0x90, 0xF0, 0x20, 0x60, 0x20, 0x20, 0x70, 0xF0, 0x10, 0xF0, 0x80, 0xF0, 0xF0,
+    0x10, 0xF0, 0x10, 0xF0, 0x90, 0x90, 0xF0, 0x10, 0x10, 0xF0, 0x80, 0xF0, 0x10, 0xF0, 0xF0, 0x80,
+    0xF0, 0x90, 0xF0, 0xF0, 0x10, 0x20, 0x40, 0x40, 0xF0, 0x90, 0xF0, 0x90, 0xF0, 0xF0, 0x90, 0xF0,
+    0x10, 0xF0, 0xF0, 0x90, 0xF0, 0x90, 0x90, 0xE0, 0x90, 0xE0, 0x90, 0xE0, 0xF0, 0x80, 0x80, 0x80,
+    0xF0, 0xE0, 0x90, 0x90, 0x90, 0xE0, 0xF0, 0x80, 0xF0, 0x80, 0xF0, 0xF0, 0x80, 0xF0, 0x80, 0x80,
+];
 
 pub enum KeyEvent {
     Up(usize),
@@ -77,11 +75,11 @@ impl Chip8 {
     // Loads a game from a file at the specfied `path`.
     pub fn load_rom_file(&mut self, path: &str) -> io::Result<()> {
         let mut file = fs::File::open(path)?;
-        let mut buffer : Vec<u8> = Vec::new();
+        let mut buffer: Vec<u8> = Vec::new();
 
         file.read_to_end(&mut buffer)?;
 
-        for i in 0..buffer.len() { 
+        for i in 0..buffer.len() {
             self.memory[0x200 + i] = buffer[i];
         }
 
@@ -125,71 +123,68 @@ impl Chip8 {
         }
     }
 
-    pub fn get_framebuffer(&self) -> &[u8] { &self.vram }
+    pub fn get_framebuffer(&self) -> &[u8] {
+        &self.vram
+    }
 
-    pub fn should_draw(&self) -> bool { self.draw_flag }
+    pub fn should_draw(&self) -> bool {
+        self.draw_flag
+    }
 }
 
 fn combine_bytes(low: u8, high: u8) -> u16 {
     (high as u16) << 8 | low as u16
 }
 
-
 mod opcodes {
+    use crate::chip8::Chip8;
     use rand;
     use rand::Rng;
-    use chip8::core::Chip8;
 
     pub fn decode(opcode: u16) -> fn(&mut Chip8) {
         match opcode {
             0x00E0 => clear_screen,
             0x00EE => return_from_sub,
-            0x1000...0x1FFF => jump_addr,
-            0x2000...0x2FFF => call_sub_at_nnn,
-            0x3000...0x3FFF => skip_if_vx_equal_to_nn,
-            0x4000...0x4FFF => skip_if_vx_not_equal_to_nn,
-            0x5000...0x5FFF => skip_if_vx_equal_to_vy,
-            0x6000...0x6FFF => set_vx_to_immediate,
-            0x7000...0x7FFF => add_nn_to_vx,
-            0x8000...0x8FFF => {
-                match opcode & 0xF {
-                    0x0 => assign_vy_to_vx,
-                    0x1 => vx_or_vy,
-                    0x2 => vx_and_vy,
-                    0x3 => vx_xor_vy,
-                    0x4 => add_vy_to_vx,
-                    0x5 => sub_vy_to_vx,
-                    0x6 => shift_vx_right,
-                    0x7 => sub_vx_to_vy,
-                    0xE => shift_vx_left,
-                    _ => panic!("Unknown opcode ${:04x}", opcode),
-                }
+            0x1000..=0x1FFF => jump_addr,
+            0x2000..=0x2FFF => call_sub_at_nnn,
+            0x3000..=0x3FFF => skip_if_vx_equal_to_nn,
+            0x4000..=0x4FFF => skip_if_vx_not_equal_to_nn,
+            0x5000..=0x5FFF => skip_if_vx_equal_to_vy,
+            0x6000..=0x6FFF => set_vx_to_immediate,
+            0x7000..=0x7FFF => add_nn_to_vx,
+            0x8000..=0x8FFF => match opcode & 0xF {
+                0x0 => assign_vy_to_vx,
+                0x1 => vx_or_vy,
+                0x2 => vx_and_vy,
+                0x3 => vx_xor_vy,
+                0x4 => add_vy_to_vx,
+                0x5 => sub_vy_to_vx,
+                0x6 => shift_vx_right,
+                0x7 => sub_vx_to_vy,
+                0xE => shift_vx_left,
+                _ => panic!("Unknown opcode ${:04x}", opcode),
             },
-            0x9000...0x9FFF => skip_if_vx_not_equal_to_vy,
-            0xA000...0xAFFF => set_memory_nnn,
-            0xB000...0xBFFF => jump_addr_sum,
-            0xC000...0xCFFF => rand_to_vx,
-            0xD000...0xDFFF => draw,
-            0xE000...0xEFFF => {
-                match opcode & 0xFF {
-                    0x9E => skip_if_key_pressed,
-                    0xA1 => skip_if_key_not_pressed,
-                    _ => panic!("Unknown opcode ${:04x}", opcode),
-                }
+            0x9000..=0x9FFF => skip_if_vx_not_equal_to_vy,
+            0xA000..=0xAFFF => set_memory_nnn,
+            0xB000..=0xBFFF => jump_addr_sum,
+            0xC000..=0xCFFF => rand_to_vx,
+            0xD000..=0xDFFF => draw,
+            0xE000..=0xEFFF => match opcode & 0xFF {
+                0x9E => skip_if_key_pressed,
+                0xA1 => skip_if_key_not_pressed,
+                _ => panic!("Unknown opcode ${:04x}", opcode),
             },
-            0xF000...0xFFFF => {
-                match opcode & 0xFF {
-                    0x07 => set_vx_to_delay,
-                    0x0A => wait_for_key_press,
-                    0x15 => set_delay_to_vx,
-                    0x18 => set_sound_to_vx,
-                    0x1E => add_vx_to_i,
-                    0x29 => set_i_to_sprite_addr,
-                    0x33 => set_bcd,
-                    0x55 => dump_registers,
-                    0x65 => load_registers,
-                    _ => panic!("Unknown opcode ${:04x}", opcode),
-                }
+            0xF000..=0xFFFF => match opcode & 0xFF {
+                0x07 => set_vx_to_delay,
+                0x0A => wait_for_key_press,
+                0x15 => set_delay_to_vx,
+                0x18 => set_sound_to_vx,
+                0x1E => add_vx_to_i,
+                0x29 => set_i_to_sprite_addr,
+                0x33 => set_bcd,
+                0x55 => dump_registers,
+                0x65 => load_registers,
+                _ => panic!("Unknown opcode ${:04x}", opcode),
             },
             _ => panic!("Unknown opcode ${:04x}", opcode),
         }
@@ -197,7 +192,10 @@ mod opcodes {
 
     /// Extracts the X and Y parameters from a 16-bit opcode in the format 0x_XY_
     fn get_opcode_args(opcode: u16) -> (usize, usize) {
-        ( ((opcode & 0x0F00) >> 8) as usize , ((opcode & 0x00F0) >> 4) as usize )
+        (
+            ((opcode & 0x0F00) >> 8) as usize,
+            ((opcode & 0x00F0) >> 4) as usize,
+        )
     }
 
     /// Extracts an 8-bit immediate value (NN)
@@ -220,7 +218,7 @@ mod opcodes {
         for i in 0..c8.vram.len() {
             c8.vram[i] = 0;
         }
-        
+
         c8.draw_flag = true;
         c8.pc = c8.pc.wrapping_add(2);
     }
@@ -320,8 +318,11 @@ mod opcodes {
 
         c8.v[x] = c8.v[x].wrapping_add(c8.v[y]);
 
-        c8.v[0xF] = if let None = u8::checked_add(c8.v[x], c8.v[y])
-                    { 1 } else { 0 };
+        c8.v[0xF] = if let None = u8::checked_add(c8.v[x], c8.v[y]) {
+            1
+        } else {
+            0
+        };
 
         c8.pc = c8.pc.wrapping_add(2);
     }
@@ -333,8 +334,11 @@ mod opcodes {
 
         c8.v[x] = c8.v[x].wrapping_sub(c8.v[y]);
 
-        c8.v[0xF] = if let None = u8::checked_sub(c8.v[x], c8.v[y])
-                    { 0 } else { 1 };
+        c8.v[0xF] = if let None = u8::checked_sub(c8.v[x], c8.v[y]) {
+            0
+        } else {
+            1
+        };
 
         c8.pc = c8.pc.wrapping_add(2);
     }
@@ -356,8 +360,11 @@ mod opcodes {
         let (x, y) = get_opcode_args(c8.opcode);
 
         c8.v[x] = c8.v[y].wrapping_sub(c8.v[x]);
-        c8.v[0xF] = if let None = u8::checked_sub(c8.v[y], c8.v[x])
-                    { 0 } else { 1 };
+        c8.v[0xF] = if let None = u8::checked_sub(c8.v[y], c8.v[x]) {
+            0
+        } else {
+            1
+        };
 
         c8.pc = c8.pc.wrapping_add(2);
     }
@@ -443,14 +450,22 @@ mod opcodes {
     /// KeyOp	if(key()==Vx)	Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)
     fn skip_if_key_pressed(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
-        c8.pc = c8.pc.wrapping_add(if c8.keypad[c8.v[x] as usize] != 0 { 4 } else { 2 });
+        c8.pc = c8.pc.wrapping_add(if c8.keypad[c8.v[x] as usize] != 0 {
+            4
+        } else {
+            2
+        });
     }
 
     /// opcode EXA1
     /// KeyOp	if(key()!=Vx)	Skips the next instruction if the key stored in VX isn't pressed. (Usually the next instruction is a jump to skip a code block)
     fn skip_if_key_not_pressed(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
-        c8.pc = c8.pc.wrapping_add(if c8.keypad[c8.v[x] as usize] == 0 { 4 } else { 2 });
+        c8.pc = c8.pc.wrapping_add(if c8.keypad[c8.v[x] as usize] == 0 {
+            4
+        } else {
+            2
+        });
     }
 
     /// opcode FX07
@@ -489,7 +504,11 @@ mod opcodes {
     fn add_vx_to_i(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
 
-        c8.v[0xF] = if (c8.i + c8.v[x] as u16) > 0x0FFF { 1 } else { 0 };
+        c8.v[0xF] = if (c8.i + c8.v[x] as u16) > 0x0FFF {
+            1
+        } else {
+            0
+        };
         c8.i += c8.v[x] as u16;
         c8.pc = c8.pc.wrapping_add(2);
     }
