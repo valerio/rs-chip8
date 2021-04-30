@@ -2,34 +2,37 @@ mod chip8;
 
 use chip8::Chip8;
 use clap::{App, Arg};
-use ggez::*;
+use minifb::{Key, Window, WindowOptions};
 
-struct State {
-    emulator: Chip8,
-    canvas: graphics::Canvas,
-}
+use crate::chip8::KeyEvent;
 
-impl ggez::event::EventHandler for State {
-    fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
-        // TODO: move this to the emulator (run until next frame)
-        while !self.emulator.should_draw() {
-            self.emulator.step();
-        }
+const WIDTH: usize = 64;
+const HEIGHT: usize = 32;
 
-        Ok(())
-    }
-    fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-        if !self.emulator.should_draw() {
-            return Ok(());
-        }
-
-        graphics::clear(ctx, (0, 0, 0, 1).into());
-        graphics::set_canvas(ctx, Some(&self.canvas));
-
-        // TODO: draw the framebuffer
-
-        Ok(())
-    }
+fn keys_to_event_vec(keys: Option<Vec<Key>>) -> Vec<usize> {
+    keys.map_or(vec![], |keys| {
+        keys.iter()
+            .filter_map(|key| match key {
+                Key::Key1 => Some(0),
+                Key::Key2 => Some(1),
+                Key::Key3 => Some(2),
+                Key::Key4 => Some(3),
+                Key::Q => Some(4),
+                Key::W => Some(5),
+                Key::E => Some(6),
+                Key::R => Some(7),
+                Key::A => Some(8),
+                Key::S => Some(9),
+                Key::D => Some(10),
+                Key::F => Some(11),
+                Key::Z => Some(12),
+                Key::X => Some(13),
+                Key::C => Some(14),
+                Key::V => Some(15),
+                _ => None,
+            })
+            .collect()
+    })
 }
 
 fn main() {
@@ -53,16 +56,56 @@ fn main() {
         .load_rom_file(file_name)
         .expect("Could not load file");
 
-    let c = conf::Conf::new();
-    let (ref mut ctx, ref mut event_loop) = ContextBuilder::new("rs-chip8", "valerio")
-        .conf(c)
-        .build()
-        .expect("Could not build ggez context");
+    let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
-    let state = &mut State {
-        emulator,
-        canvas: graphics::Canvas::with_window_size(ctx).unwrap(),
-    };
+    let mut window = Window::new(
+        "Chip8",
+        WIDTH,
+        HEIGHT,
+        WindowOptions {
+            resize: true,
+            scale: minifb::Scale::X8,
+            scale_mode: minifb::ScaleMode::AspectRatioStretch,
+            ..Default::default()
+        },
+    )
+    .expect("Could not initialize window");
 
-    event::run(ctx, event_loop, state).unwrap();
+    // Limit to max ~60 fps update rate
+    window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
+
+    while window.is_open() && !window.is_key_down(Key::Escape) {
+        // handle keys pressed/released
+        for key in keys_to_event_vec(window.get_keys_pressed(minifb::KeyRepeat::No)) {
+            emulator.handle_input(KeyEvent::Down(key));
+        }
+        for key in keys_to_event_vec(window.get_keys_released()) {
+            emulator.handle_input(KeyEvent::Up(key));
+        }
+
+        // execute until the next frame should be drawn
+        while !emulator.should_draw() {
+            emulator.step();
+        }
+        emulator.draw_flag = false;
+
+        // prepare the framebuffer
+        let raw_fb = emulator.get_framebuffer();
+        for (i, pixel) in buffer.iter_mut().enumerate() {
+            if i == raw_fb.len() {
+                break;
+            }
+
+            *pixel = if raw_fb[i] == 0 {
+                0xFF000000
+            } else {
+                0xFFFFFFFF
+            };
+        }
+
+        // draw
+        window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
+
+        // TODO: sound
+    }
 }

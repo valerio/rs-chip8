@@ -10,6 +10,7 @@ static FONT_SET: [u8; 80] = [
     0xF0, 0xE0, 0x90, 0x90, 0x90, 0xE0, 0xF0, 0x80, 0xF0, 0x80, 0xF0, 0xF0, 0x80, 0xF0, 0x80, 0x80,
 ];
 
+#[derive(Debug)]
 pub enum KeyEvent {
     Up(usize),
     Down(usize),
@@ -33,7 +34,7 @@ pub struct Chip8 {
     delay_t: u8,
     sound_t: u8,
     opcode: u16,
-    draw_flag: bool,
+    pub draw_flag: bool,
     stopped: bool,
 }
 
