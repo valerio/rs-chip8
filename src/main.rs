@@ -84,7 +84,7 @@ fn main() {
         }
 
         // execute until the next frame should be drawn
-        while !emulator.should_draw() {
+        while !emulator.should_draw() && !emulator.stopped {
             emulator.step();
         }
         emulator.draw_flag = false;

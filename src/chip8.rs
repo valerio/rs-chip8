@@ -30,12 +30,12 @@ pub struct Chip8 {
     v: Vec<u8>,
     memory: Vec<u8>,
     vram: Vec<u8>,
-    keypad: Vec<u8>,
+    key_pressed: Vec<bool>,
     delay_t: u8,
     sound_t: u8,
     opcode: u16,
     pub draw_flag: bool,
-    stopped: bool,
+    pub stopped: bool,
 }
 
 impl Chip8 {
@@ -48,7 +48,7 @@ impl Chip8 {
             v: vec![0; REGISTERS],
             memory: vec![0; MEMORY_SIZE],
             vram: vec![0; VRAM_SIZE],
-            keypad: vec![0; 16],
+            key_pressed: vec![false; 16],
             delay_t: 0,
             sound_t: 0,
             opcode: 0,
@@ -119,8 +119,8 @@ impl Chip8 {
         }
 
         match key_event {
-            KeyEvent::Up(key) => self.keypad[key] = 1,
-            KeyEvent::Down(key) => self.keypad[key] = 0,
+            KeyEvent::Up(key) => self.key_pressed[key] = true,
+            KeyEvent::Down(key) => self.key_pressed[key] = false,
         }
     }
 
@@ -451,22 +451,16 @@ mod opcodes {
     /// KeyOp	if(key()==Vx)	Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)
     fn skip_if_key_pressed(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
-        c8.pc = c8.pc.wrapping_add(if c8.keypad[c8.v[x] as usize] != 0 {
-            4
-        } else {
-            2
-        });
+        let pressed = c8.key_pressed[c8.v[x] as usize];
+        c8.pc = c8.pc.wrapping_add(if pressed { 4 } else { 2 });
     }
 
     /// opcode EXA1
     /// KeyOp	if(key()!=Vx)	Skips the next instruction if the key stored in VX isn't pressed. (Usually the next instruction is a jump to skip a code block)
     fn skip_if_key_not_pressed(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
-        c8.pc = c8.pc.wrapping_add(if c8.keypad[c8.v[x] as usize] == 0 {
-            4
-        } else {
-            2
-        });
+        let not_pressed = !c8.key_pressed[c8.v[x] as usize];
+        c8.pc = c8.pc.wrapping_add(if not_pressed { 4 } else { 2 });
     }
 
     /// opcode FX07
