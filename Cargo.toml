@@ -5,6 +5,6 @@ authors = ["Valerio Pipolo <valep27@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-rand = "0.3.15"
+rand = "0.8.4"
 clap = "2.19.0"
 ggez = "0.7"

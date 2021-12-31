@@ -407,7 +407,7 @@ mod opcodes {
     fn rand_to_vx(c8: &mut Chip8) {
         let (x, _) = get_opcode_args(c8.opcode);
         let nn = get_immediate_value(c8.opcode);
-        c8.v[x] = rand::thread_rng().gen_range(0, 255) & nn;
+        c8.v[x] = rand::thread_rng().gen_range(0..=255) & nn;
         c8.pc = c8.pc.wrapping_add(2);
     }
 
