@@ -1,11 +1,7 @@
 mod chip8;
+mod sound;
 
-use chip8::Chip8;
 use clap::{App, Arg};
-use cpal::{
-    traits::{DeviceTrait, HostTrait, StreamTrait},
-    Stream,
-};
 use ggez::{
     conf::WindowSetup,
     event::{self, EventHandler, KeyCode},
@@ -13,7 +9,8 @@ use ggez::{
     input, timer, Context, ContextBuilder, GameResult,
 };
 
-use crate::chip8::KeyEvent;
+use chip8::{Chip8, KeyEvent};
+use sound::Beeper;
 
 const WIDTH: usize = 64;
 const HEIGHT: usize = 32;
@@ -59,6 +56,8 @@ fn keycode_to_event(key: KeyCode) -> usize {
     }
 }
 
+/// Holds the state of the main program, i.e. all the things needed
+/// while the emulator is updating and doing I/O.
 struct EmulatorState {
     emulator: Chip8,
     beeper: Option<Beeper>,
@@ -89,6 +88,8 @@ impl EventHandler for EmulatorState {
 
         if let Some(beeper) = &self.beeper {
             if self.emulator.should_beep() {
+                // TODO: this should play for longer than a single update.
+                // As it is, it will sometimes run for too short a time to hear it.
                 beeper.play();
             } else {
                 beeper.pause();
@@ -110,98 +111,22 @@ impl EventHandler for EmulatorState {
         graphics::clear(ctx, Color::WHITE);
 
         let bw_framebuffer = self.emulator.get_framebuffer();
+
+        // Convert the internal framebuffer (1 number per pixel, black & white) to
+        // an RGBA framebuffer (4 numbers per pixel).
         for i in 0..bw_framebuffer.len() {
             let color = if bw_framebuffer[i] == 0 { 0 } else { 255 };
             self.fb[(i * 4)] = color;
             self.fb[(i * 4) + 1] = color;
             self.fb[(i * 4) + 2] = color;
-            self.fb[(i * 4) + 3] = 255; // alpha
+            // Nothing is ever transparent, so alpha is fixed to maximum (255).
+            self.fb[(i * 4) + 3] = 255;
         }
-
-        debug_assert_eq!(self.fb.len(), WIDTH * HEIGHT * 4);
 
         let img = Image::from_rgba8(ctx, WIDTH as u16, HEIGHT as u16, &self.fb)?;
         graphics::draw(ctx, &img, DrawParam::default())?;
 
         graphics::present(ctx)
-    }
-}
-
-struct Beeper {
-    stream: cpal::Stream,
-}
-
-impl Beeper {
-    pub fn new() -> anyhow::Result<Self> {
-        let device = cpal::default_host()
-            .default_output_device()
-            .expect("no audio device found");
-
-        let mut supported_configs_range = device.supported_output_configs()?;
-        let config = supported_configs_range
-            .next()
-            .expect("no supported config")
-            .with_max_sample_rate();
-
-        let stream = match config.sample_format() {
-            cpal::SampleFormat::I16 => Self::build_stream::<i16>(&device, &config.into())?,
-            cpal::SampleFormat::U16 => Self::build_stream::<u16>(&device, &config.into())?,
-            cpal::SampleFormat::F32 => Self::build_stream::<f32>(&device, &config.into())?,
-        };
-
-        stream.pause()?;
-
-        Ok(Beeper { stream })
-    }
-
-    pub fn play(&self) {
-        self.stream.play().ok();
-    }
-
-    pub fn pause(&self) {
-        self.stream.pause().ok();
-    }
-
-    fn build_stream<T>(
-        device: &cpal::Device,
-        config: &cpal::StreamConfig,
-    ) -> Result<Stream, anyhow::Error>
-    where
-        T: cpal::Sample,
-    {
-        let sample_rate = config.sample_rate.0 as f32;
-        let channels = config.channels as usize;
-
-        // Produce a sinusoid of maximum amplitude.
-        let mut sample_clock = 0f32;
-        let mut next_value = move || {
-            sample_clock = (sample_clock + 1.0) % sample_rate;
-            (sample_clock * 440.0 * 2.0 * std::f32::consts::PI / sample_rate).sin()
-        };
-
-        let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
-
-        let stream = device.build_output_stream(
-            config,
-            move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
-                Self::write_data(data, channels, &mut next_value)
-            },
-            err_fn,
-        )?;
-
-        return Ok(stream);
-    }
-
-    fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> f32)
-    where
-        T: cpal::Sample,
-    {
-        for frame in output.chunks_mut(channels) {
-            let value: T = cpal::Sample::from::<f32>(&next_sample());
-            for sample in frame.iter_mut() {
-                *sample = value;
-            }
-        }
     }
 }
 
