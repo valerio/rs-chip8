@@ -131,6 +131,10 @@ impl Chip8 {
     pub fn should_draw(&self) -> bool {
         self.draw_flag
     }
+
+    pub fn should_beep(&self) -> bool {
+        self.sound_t == 1
+    }
 }
 
 fn combine_bytes(low: u8, high: u8) -> u16 {
