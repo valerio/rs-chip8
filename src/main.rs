@@ -2,6 +2,10 @@ mod chip8;
 
 use chip8::Chip8;
 use clap::{App, Arg};
+use cpal::{
+    traits::{DeviceTrait, HostTrait, StreamTrait},
+    Stream,
+};
 use ggez::{
     conf::WindowSetup,
     event::{self, EventHandler, KeyCode},
@@ -57,13 +61,17 @@ fn keycode_to_event(key: KeyCode) -> usize {
 
 struct EmulatorState {
     emulator: Chip8,
+    beeper: Option<Beeper>,
     fb: Vec<u8>,
 }
 
 impl EmulatorState {
     pub fn new(emulator: Chip8) -> Self {
-        let fb = vec![0; WIDTH * HEIGHT * 4];
-        Self { emulator, fb }
+        Self {
+            emulator,
+            beeper: Beeper::new().ok(),
+            fb: vec![0; WIDTH * HEIGHT * 4],
+        }
     }
 }
 
@@ -77,6 +85,14 @@ impl EventHandler for EmulatorState {
             };
 
             self.emulator.handle_input(input);
+        }
+
+        if let Some(beeper) = &self.beeper {
+            if self.emulator.should_beep() {
+                beeper.play();
+            } else {
+                beeper.pause();
+            }
         }
 
         while timer::check_update_time(ctx, 120) {
@@ -111,7 +127,85 @@ impl EventHandler for EmulatorState {
     }
 }
 
-fn main() -> GameResult {
+struct Beeper {
+    stream: cpal::Stream,
+}
+
+impl Beeper {
+    pub fn new() -> anyhow::Result<Self> {
+        let device = cpal::default_host()
+            .default_output_device()
+            .expect("no audio device found");
+
+        let mut supported_configs_range = device.supported_output_configs()?;
+        let config = supported_configs_range
+            .next()
+            .expect("no supported config")
+            .with_max_sample_rate();
+
+        let stream = match config.sample_format() {
+            cpal::SampleFormat::I16 => Self::build_stream::<i16>(&device, &config.into())?,
+            cpal::SampleFormat::U16 => Self::build_stream::<u16>(&device, &config.into())?,
+            cpal::SampleFormat::F32 => Self::build_stream::<f32>(&device, &config.into())?,
+        };
+
+        stream.pause()?;
+
+        Ok(Beeper { stream })
+    }
+
+    pub fn play(&self) {
+        self.stream.play().ok();
+    }
+
+    pub fn pause(&self) {
+        self.stream.pause().ok();
+    }
+
+    fn build_stream<T>(
+        device: &cpal::Device,
+        config: &cpal::StreamConfig,
+    ) -> Result<Stream, anyhow::Error>
+    where
+        T: cpal::Sample,
+    {
+        let sample_rate = config.sample_rate.0 as f32;
+        let channels = config.channels as usize;
+
+        // Produce a sinusoid of maximum amplitude.
+        let mut sample_clock = 0f32;
+        let mut next_value = move || {
+            sample_clock = (sample_clock + 1.0) % sample_rate;
+            (sample_clock * 440.0 * 2.0 * std::f32::consts::PI / sample_rate).sin()
+        };
+
+        let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
+
+        let stream = device.build_output_stream(
+            config,
+            move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
+                Self::write_data(data, channels, &mut next_value)
+            },
+            err_fn,
+        )?;
+
+        return Ok(stream);
+    }
+
+    fn write_data<T>(output: &mut [T], channels: usize, next_sample: &mut dyn FnMut() -> f32)
+    where
+        T: cpal::Sample,
+    {
+        for frame in output.chunks_mut(channels) {
+            let value: T = cpal::Sample::from::<f32>(&next_sample());
+            for sample in frame.iter_mut() {
+                *sample = value;
+            }
+        }
+    }
+}
+
+fn main() -> anyhow::Result<()> {
     let matches = App::new("rs-chip8")
         .about("Chip8 Emulator")
         .arg(
@@ -123,14 +217,10 @@ fn main() -> GameResult {
         )
         .get_matches();
 
-    let file_name = matches
-        .value_of("file")
-        .expect("Must specify a file to load.");
+    let file_name = matches.value_of("file").expect("no file specified");
 
     let mut emulator = Chip8::new();
-    emulator
-        .load_rom_file(file_name)
-        .expect("Could not load file");
+    emulator.load_rom_file(file_name)?;
 
     // Make a Context.
     let (mut ctx, event_loop) = ContextBuilder::new("rs-chip8", "Valerio")
