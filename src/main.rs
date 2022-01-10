@@ -3,7 +3,7 @@ mod sound;
 
 use clap::{App, Arg};
 use ggez::{
-    conf::WindowSetup,
+    conf::{WindowMode, WindowSetup},
     event::{self, EventHandler, KeyCode},
     graphics::{self, Color, DrawParam, Image},
     input, timer, Context, ContextBuilder, GameResult,
@@ -12,8 +12,14 @@ use ggez::{
 use chip8::{Chip8, KeyEvent};
 use sound::Beeper;
 
-const WIDTH: usize = 64;
-const HEIGHT: usize = 32;
+const WIDTH: f32 = 64.0;
+const HEIGHT: f32 = 32.0;
+
+/// Factor of scale for the size of the window in pixels.
+const SCALE: f32 = 12.0;
+
+const MIN_HEIGHT: f32 = HEIGHT * SCALE;
+const MIN_WIDTH: f32 = WIDTH * SCALE;
 
 const KEYS: [KeyCode; 16] = [
     KeyCode::Key1,
@@ -69,7 +75,7 @@ impl EmulatorState {
         Self {
             emulator,
             beeper: Beeper::new().ok(),
-            fb: vec![0; WIDTH * HEIGHT * 4],
+            fb: vec![0; WIDTH as usize * HEIGHT as usize * 4],
         }
     }
 }
@@ -157,19 +163,27 @@ fn main() -> anyhow::Result<()> {
 
     let state = EmulatorState::new(emulator);
 
-    graphics::set_resizable(&mut ctx, true)?;
-
-    // Set screen coordinates to match the size of a Chip8 framebuffer.
-    // This ensures that the framebuffer is stretched across the entire window.
-    graphics::set_screen_coordinates(
+    graphics::set_mode(
         &mut ctx,
-        graphics::Rect::new(0.0, 0.0, WIDTH as f32, HEIGHT as f32),
+        WindowMode {
+            width: MIN_WIDTH,
+            height: MIN_HEIGHT,
+            maximized: false,
+            min_width: MIN_WIDTH,
+            min_height: MIN_HEIGHT,
+            resizable: true,
+            ..WindowMode::default()
+        },
     )?;
 
     // Set default filter mode to nearest-neighbor.
     // This makes low resolution images look crisp as they are upscaled, if left to default
     // Chip8 graphics would be smoothened out and look "blurry".
     graphics::set_default_filter(&mut ctx, graphics::FilterMode::Nearest);
+
+    // Set screen coordinates to match the size of a Chip8 framebuffer.
+    // This ensures that the framebuffer is stretched across the entire window.
+    graphics::set_screen_coordinates(&mut ctx, graphics::Rect::new(0.0, 0.0, WIDTH, HEIGHT))?;
 
     event::run(ctx, event_loop, state);
 }
